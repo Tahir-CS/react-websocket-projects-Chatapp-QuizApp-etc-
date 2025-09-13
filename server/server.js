@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const { loadHistory, saveMessage } = require('./db');
 
 // Step 1: Create the WebSocket server on port 8080
 // Visualize: Setting up a central hub with multiple rooms (like a house with separate party rooms)
@@ -18,7 +19,7 @@ wss.on('connection', (ws) => {
 
   // Step 4: Listen for messages from this client
   // Visualize: The guest speaks or requests to join a room
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     const msgStr = message.toString();
     console.log(`Received: ${msgStr}`);
 
@@ -38,12 +39,23 @@ wss.on('connection', (ws) => {
       currentRoom = roomName;
       ws.send(`Joined room: ${roomName}`);
       console.log(`Client joined room: ${roomName}`);
+      
+      // New: Load message history from DB
+      // Visualize: Pull old messages for the room
+      const msgs = await loadHistory(roomName);
+      msgs.forEach(msg => ws.send(msg.message));
+      
       return;
     }
 
-    // Step 6: If not a join, broadcast to the current room only
+    // Step 6: If not a join, save to DB and broadcast to the current room only
     // Visualize: Guest speaks in their room—only others in that room hear it
     if (currentRoom && rooms.has(currentRoom)) {
+      // New: Save message to DB
+      // Visualize: Store in the cloud database
+      await saveMessage(currentRoom, msgStr);
+      
+      // Existing broadcast logic
       rooms.get(currentRoom).forEach((client) => {
         if (client.readyState === WebSocket.OPEN && client !== ws) { // Exclude sender if desired
           client.send(`${msgStr}`);
@@ -61,88 +73,3 @@ wss.on('connection', (ws) => {
     console.log('Client disconnected');
   });
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// const WebSocket = require('ws');
-
-// // Step 1: Create the WebSocket server on port 8080
-// // Visualize: Setting up a central hub (like a party host) where people can connect
-// const wss = new WebSocket.Server({ port: 8080 });
-// console.log('Server on ws://localhost:8080');
-
-// // Step 2: Create a Set to store all connected clients
-// // Visualize: A guest list at the party—easy to add/remove and loop through
-// const clients = new Set();
-
-// wss.on('connection', (ws) => {
-//   // Step 3: When a new client connects, add them to the Set
-//   // Visualize: A new guest arrives and joins the party
-//   clients.add(ws);
-//   console.log('Client connected. Total clients:', clients.size);
-
-//   // Step 4: Listen for messages from this client
-//   // Visualize: The guest speaks (sends a message)
-//   ws.on('message', (message) => {
-//     console.log(`Received from a client: ${message}`);
-    
-//     // Step 5: Broadcast the message to ALL connected clients (including the sender)
-//     // Visualize: The host repeats the message loudly to everyone in the room
-//     clients.forEach((client) => {
-//       // Check if the client is still connected (ready to receive)
-//       if (client.readyState === WebSocket.OPEN) {
-//         // Send the message to this client
-//         // Visualize: Passing the note to each guest one by one
-//         client.send(`${message}`); // You can add a prefix like "User: " if needed
-//       }
-//     });
-//   });
-
-//   // Step 6: When a client disconnects, remove them from the Set
-//   // Visualize: A guest leaves the party, so remove them from the list
-//   ws.on('close', () => {
-//     clients.delete(ws);
-//     console.log('Client disconnected. Total clients:', clients.size);
-//   });
-// }); 
-
-
-
